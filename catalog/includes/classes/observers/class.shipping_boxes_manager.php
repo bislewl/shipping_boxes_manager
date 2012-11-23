@@ -54,15 +54,19 @@ class shippingBoxesManagerObserver extends base
         $possible_boxes_query_where = "(destination = 'international' OR destination = 'both') ";
       }               
       if (is_array($products)) {        
-        $products_by_dimensions = array();
+        $products_by_dimensions = array();                                                                                                      
         $packed_boxes = array();
         foreach($products as $product) {
           if (substr($product['model'], 0, 4) == 'GIFT' || zen_get_products_virtual((int)$product['id'])) {
             continue;
-          }
+          }                                   
           $products_properties = $db->Execute('SELECT products_length, products_width, products_height, products_ready_to_ship, products_weight FROM '.TABLE_PRODUCTS.' WHERE products_id='.(int)$product['id']);
           if ($products_properties->fields['products_ready_to_ship']) {
             // skip this product
+            for ($i=0; $i<=sizeof($product['quantity']); $i++) {
+              $packed_boxes[] = array('length' => $products_properties->fields['products_length'], 'width' => $products_properties->fields['products_width'], 'height' => $products_properties->fields['products_height'], 'weight' => $product['weight'], 'remaining_volume' => 0);
+              $new_total_weight += $product['weight'];
+            } 
             continue;  
           }
           if ($products_properties->fields['products_length'] <= 0 || $products_properties->fields['products_width'] <= 0 || $products_properties->fields['products_height'] <= 0) {
@@ -114,6 +118,7 @@ class shippingBoxesManagerObserver extends base
             }
           }
           $current_volume = $current_products_length * $current_products_width * $current_products_height;
+          $total_volume += $current_volume; 
           for ($i=0; $i<$product['quantity']; $i++) {
             $products_by_dimensions[] = array(
               'dimensions' => array(
@@ -125,7 +130,7 @@ class shippingBoxesManagerObserver extends base
               'weight' => $current_products_weight, 
               'quantity' => $product['quantity']
             );
-            $new_total_weight += $current_products_weight;
+            $new_total_weight += $current_products_weight;                                                       
           }
         }      
         $products_by_volume = $this->array_msort($products_by_dimensions, array('volume' => array(SORT_DESC)));
@@ -173,10 +178,16 @@ class shippingBoxesManagerObserver extends base
         }
           
         if (!$packed_boxes['default']['weight'] > 0) unset($packed_boxes['default']);
+        /*
+        echo '<!-- <pre>';
+        print_r($packed_boxes);
+        echo '</pre> -->';
+        */            
         if ($new_total_weight > 0) {
           $GLOBALS['shipping_num_boxes'] = sizeof($packed_boxes); 
           $GLOBALS['total_weight'] = $new_total_weight;
           $GLOBALS['shipping_weight'] = $GLOBALS['total_weight'] / $GLOBALS['shipping_num_boxes'];
+          //echo '<!-- ' . $new_total_weight . ' = ' . $GLOBALS['shipping_weight'] . ' x ' . $GLOBALS['shipping_num_boxes'] . ' -->';
         }          
           // END NEW CODE
           
