@@ -36,118 +36,55 @@ class shippingBoxesManagerObserver extends base
     global $order, $db, $packed_boxes;
     if (MODULE_SHIPPING_BOXES_MANAGER_STATUS == 'true') {
       $packed_boxes = array('default' => array('weight' => 0));
-      $products = $order->products;
+      $products = $_SESSION['cart']->get_products();
       //echo '<pre>';
       //print_r($products);
       //die('</pre>');
-      $volume = $products_length = $total_length = $products_width = $total_width = $products_height = $total_height = $products_price = $weight = $new_total_weight = 0;
+      $total_volume = $volume = $products_length = $total_length = $products_width = $total_width = $products_height = $total_height = $products_price = $weight = $new_total_weight = 0;
       $skipped = 0;
-              
-      if (is_array($products)) {
-        foreach($products as $product) {
-          if (substr($product['model'], 0, 4) == 'GIFT' || zen_get_products_virtual((int)$product['id'])) {
-            $skipped++;
-            continue;
-          }
-          $products_price += $product['final_price'] * $product['qty'];
-          //weight OZ
-          $productProperties = $db->Execute('SELECT products_weight, products_length, products_width, products_height, products_ready_to_ship FROM '.TABLE_PRODUCTS.' WHERE products_id='.(int)$product['id']);
-          $products_weight = $productProperties->fields['products_weight'] * $product['qty'];
-          $new_total_weight += $products_weight;
-          // get the longest length and width
-          if ($productProperties->fields['products_length'] > $total_length) $total_length = $productProperties->fields['products_length'];
-          if ($productProperties->fields['products_width'] > $total_width) $total_width = $productProperties->fields['products_width'];
-          // compound the height
-          $total_height += $productProperties->fields['products_height'] * $product['qty'];
-          $products_length = $productProperties->fields['products_length'];
-          $products_width = $productProperties->fields['products_width'];
-          $products_height = $productProperties->fields['products_height'];        
-          if (is_array($product['attributes'])) {
-            foreach ($product['attributes'] as $attribute) {
-              $products_price += $attribute['price'] * $product['qty']; 
-              $options_value = $attribute['value'];
-              // try checking if weight exists for attribute outside of order
-              $products_attributes_query = "SELECT * FROM " . TABLE_PRODUCTS_ATTRIBUTES . " pa
-                                            LEFT JOIN " . TABLE_PRODUCTS_OPTIONS_VALUES . " pov ON (pov.products_options_values_id = pa.options_values_id) 
-                                            WHERE pa.products_id = " . (int)$product['id'] . "
-                                            AND pov.products_options_values_name = '" . addslashes($options_value) . "'
-                                            LIMIT 1;"; 
-              $products_attributes = $db->Execute($products_attributes_query);
-              if ($products_attributes->fields['products_attributes_weight_prefix'] == '+') {                                                        
-                $products_weight += $products_attributes->fields['products_attributes_weight'] * $product['qty'];
-                $new_total_weight += $products_attributes->fields['products_attributes_weight'] * $product['qty'];
-              } else if($products_attributes->fields['products_attributes_weight_prefix'] == '-') {
-                $products_weight -= $products_attributes->fields['products_attributes_weight'] * $product['qty'];
-                $new_total_weight -= $products_attributes->fields['products_attributes_weight'] * $product['qty'];
-              }                  
-              // adjust attributes
-              if ($products_attributes->fields['products_attributes_length_prefix'] == '+') {
-                $attribute_length = $products_attributes->fields['products_attributes_length'];
-              } elseif ($products_attributes->fields['products_attributes_length_prefix'] == '-') {
-                $attribute_length = (0 - $products_attributes->fields['products_attributes_length']);
-              }
-              if ($products_attributes->fields['products_attributes_width_prefix'] == '+') {
-                $attribute_width = $products_attributes->fields['products_attributes_width'];
-              } elseif ($products_attributes->fields['products_attributes_width_prefix'] == '-') {
-                $attribute_width = (0 - $products_attributes->fields['products_attributes_width']);
-              }
-              if ($products_attributes->fields['products_attributes_height_prefix'] == '+') {
-                $attribute_height = $products_attributes->fields['products_attributes_height'];
-              } elseif ($products_attributes->fields['products_attributes_height_prefix'] == '-') {                                                                                     
-                $attribute_height = (0 - $products_attributes->fields['products_attributes_height']);
-              }            
-              // get the longest length and width
-              if ($attribute_length + $productProperties->fields['products_length'] > $total_length) $total_length = $productProperties->fields['products_length'] + $attribute_length;
-              if ($attribute_width + $productProperties->fields['products_width'] > $total_width) $total_width = $productProperties->fields['products_width'] + $attribute_width;
-              // compound the height
-              $total_height += $attribute_height * $product['qty']; // already added the product's height
-              $products_length += $attribute_length;
-              $products_width += $attribute_width;
-              $products_height += $attribute_height;
-            }
-          }
-          if ($productProperties->fields['products_length'] <= 0 || $productProperties->fields['products_width'] <= 0 || $productProperties->fields['products_height'] <= 0) {
-            // add weight to a default box as this cannot be packed using shipping boxes manager
-            $packed_boxes['default']['weight'] += $products_weight;
-            continue; 
-          }        
-          if ($productProperties->fields['products_ready_to_ship']) {
-            for ($i=1; $i<=$product['qty']; $i++) {
-              $packed_boxes[] = array('length' => $products_length / $product['qty'], 'width' => $products_width / $product['qty'], 'height' => $products_height / $product['qty'], 'weight' => $products_weight / $product['qty']);
-            }
-          } else {
-            $volume = $total_length * $total_width * $total_height;
-          }
-        }
-        
-        // recalculate volume taking into consideration the possibility of multiple items per layer
-        $new_products_height = 0;
-        $products_by_dimension = array();
+      $box_destination = '';
+      if ($order->delivery['country']['id'] == STORE_COUNTRY) {
+        $box_destination = 'domestic';
+      } else {
+        $box_destination = 'international';
+      }
+      if ($box_destination == 'domestic') {
+        $possible_boxes_query_where = "(destination = 'domestic' OR destination = 'both') ";
+      } else {
+        $possible_boxes_query_where = "(destination = 'international' OR destination = 'both') ";
+      }               
+      if (is_array($products)) {        
+        $products_by_dimensions = array();
+        $packed_boxes = array();
         foreach($products as $product) {
           if (substr($product['model'], 0, 4) == 'GIFT' || zen_get_products_virtual((int)$product['id'])) {
             continue;
           }
-          $hproducts = $db->Execute('SELECT products_length, products_width, products_height, products_ready_to_ship, products_weight FROM '.TABLE_PRODUCTS.' WHERE products_id='.(int)$product['id']);
-          if ($hproducts->fields['products_ready_to_ship']) {
+          $products_properties = $db->Execute('SELECT products_length, products_width, products_height, products_ready_to_ship, products_weight FROM '.TABLE_PRODUCTS.' WHERE products_id='.(int)$product['id']);
+          if ($products_properties->fields['products_ready_to_ship']) {
             // skip this product
             continue;  
           }
-          if ($hproducts->fields['products_length'] <= 0 || $hproducts->fields['products_width'] <= 0 || $hproducts->fields['products_height'] <= 0) {
-            // skip this product, it's already packed
+          if ($products_properties->fields['products_length'] <= 0 || $products_properties->fields['products_width'] <= 0 || $products_properties->fields['products_height'] <= 0) {
+            // pack this product into a default array   
+            $packed_boxes['default'] = array('weight' => $products_properties->fields['products_weight'] * $product['quantity'], 'remaining_volume' => 0);
+            $new_total_weight += ($products_properties->fields['products_weight'] * $product['quantity']);
             continue;
           }
-          $current_products_length = $hproducts->fields['products_length'];
-          $current_products_width = $hproducts->fields['products_width'];
-          $current_products_height = $hproducts->fields['products_height'];
+          $current_products_length = $products_properties->fields['products_length'];
+          $current_products_width = $products_properties->fields['products_width'];
+          $current_products_height = $products_properties->fields['products_height'];
+          $current_products_weight = $products_properties->fields['products_weight'];
+          
           if (is_array($product['attributes'])) {
-            foreach ($product['attributes'] as $attribute) {
-              $products_price += $attribute['price'] * $product['qty']; 
-              $options_value = $attribute['value'];
+            foreach ($product['attributes'] as $options_id => $options_values_id) {
+              //$products_price += $attribute['price'] * $product['quantity']; 
+              //$options_value = $attribute['value'];
               
               $products_attributes_query = "SELECT * FROM " . TABLE_PRODUCTS_ATTRIBUTES . " pa
                                             LEFT JOIN " . TABLE_PRODUCTS_OPTIONS_VALUES . " pov ON (pov.products_options_values_id = pa.options_values_id) 
                                             WHERE pa.products_id = " . (int)$product['id'] . "
-                                            AND pov.products_options_values_name = '" . addslashes($options_value) . "'
+                                            AND pov.products_options_values_id = " . (int)$options_values_id . "
                                             LIMIT 1;"; 
               $products_attributes = $db->Execute($products_attributes_query);
               
@@ -165,46 +102,92 @@ class shippingBoxesManagerObserver extends base
                 $current_products_height += $products_attributes->fields['products_attributes_height'];
               } elseif ($products_attributes->fields['products_attributes_height_prefix'] == '-') {
                 $current_products_height -= $products_attributes->fields['products_attributes_height'];
-              } 
+              }
+              // weight is already added to the product
+              /*
+              if ($products_attributes->fields['products_attributes_weight_prefix'] == '+') {
+                $current_products_weight += $products_attributes->fields['products_attributes_weight'];
+              } elseif ($products_attributes->fields['products_attributes_weight_prefix'] == '-') {
+                $current_products_weight -= $products_attributes->fields['products_attributes_weight'];
+              }
+              */                            
             }
           }
-          $current_dimensions = $current_products_length . 'x' . $current_products_width . 'x' . $current_products_height;
-          $match = false;
-          for ($i=0; $i<count($products_by_dimension); $i++) {
-            if ($current_dimensions == $products_by_dimension[$i]['dimensions']) {
-              $match = true;
-              $products_by_dimension[$i]['quantity'] += $product['qty'];
-              break;  
+          $current_volume = $current_products_length * $current_products_width * $current_products_height;
+          for ($i=0; $i<$product['quantity']; $i++) {
+            $products_by_dimensions[] = array(
+              'dimensions' => array(
+                'length' => $current_products_length, 
+                'width' => $current_products_width, 
+                'height' => $current_products_height
+              ), 
+              'volume' => $current_volume, 
+              'weight' => $current_products_weight, 
+              'quantity' => $product['quantity']
+            );
+            $new_total_weight += $current_products_weight;
+          }
+        }      
+        $products_by_volume = $this->array_msort($products_by_dimensions, array('volume' => array(SORT_DESC)));
+        $total_remaining_volume = $total_volume;
+        foreach ($products_by_volume as $current_product_key => $products_properties) {         
+          $current_products_length = $products_properties['dimensions']['length'];
+          $current_products_width = $products_properties['dimensions']['width']; 
+          $current_products_height = $products_properties['dimensions']['height'];
+          $current_products_volume = $products_properties['volume'];
+          $current_products_weight = $products_properties['weight'];
+          $current_products_quantity = $products_properties['quantity'];
+          
+          if (sizeof($packed_boxes) > 0) {
+            // sort it by remaining volume
+            $packed_boxes = $this->array_msort($packed_boxes, array('remaining_volume' => array(SORT_DESC)));
+            $found_box = false;
+            foreach ($packed_boxes as $current_box_key => $box_properties) {
+              if ($box_properties['remaining_volume'] >= $current_products_volume) {
+                $packed_boxes[$current_box_key]['remaining_volume'] = $box_properties['remaining_volume'] - $current_products_volume;
+                $total_remaining_volume -= $current_products_volume;
+                $found_box = true;
+                break;
+              }
             }
           }
-          if (!$match) {
-            $products_by_dimension[] = array('dimensions' => $current_dimensions, 'quantity' => $product['qty']);
+          if ($found_box == false) {
+            // get the smallest box that will fit all the products
+            $box = $db->Execute("SELECT length, width, height, volume FROM " . TABLE_SHIPPING_BOXES_MANAGER . "
+                                 WHERE length >= '" . $current_products_length . "'
+                                 AND width >= '" . $current_products_width . "'
+                                 AND height >= '" . $current_products_height . "'
+                                 AND volume >= '" . $total_remaining_volume . "'
+                                 AND " . $possible_boxes_query_where . "
+                                 ORDER BY volume ASC
+                                 LIMIT 1;");
+            if ($box->RecordCount() > 0) {          
+              $remaining_volume = $box->fields['volume'] - $current_products_volume;
+              $packed_boxes[] = array('length' => $box->fields['length'], 'width' => $box->fields['width'], 'height' => $box->fields['height'], 'weight' => $box->fields['weight'] + $current_products_weight, 'remaining_volume' => $remaining_volume);
+            } else {
+              $packed_boxes[] = array('length' => $current_products_length, 'width' => $box->fields['width'], 'height' => $boxes->fields['height'], 'weight' => $box->fields['weight'] + $current_products_weight, 'remaining_volume' => 0);
+            }
+            $new_total_weight += $box->fields['weight']; 
+            $total_remaining_volume -= $current_products_volume;
           }
         }
-        foreach ($products_by_dimension as $product_by_dimension) {
-          $current_dimensions = explode('x', $product_by_dimension['dimensions']);
-          $current_products_length = $current_dimensions[0];
-          $current_products_width = $current_dimensions[1]; 
-          $current_products_quantity = $product_by_dimension['quantity'];
-          $current_products_height = $current_dimensions[2];
-          $current_products_stacked_height = $current_products_height * $product_by_dimension['quantity'];
+          
+        if (!$packed_boxes['default']['weight'] > 0) unset($packed_boxes['default']);
+        if ($new_total_weight > 0) {
+          $GLOBALS['shipping_num_boxes'] = sizeof($packed_boxes); 
+          $GLOBALS['total_weight'] = $new_total_weight;
+          $GLOBALS['shipping_weight'] = $GLOBALS['total_weight'] / $GLOBALS['shipping_num_boxes'];
+        }          
+          // END NEW CODE
+          
+          /*
+          $current_products_stacked_height = $current_products_height * $current_products_quantity;
           if ($current_products_stacked_height > $current_products_length) {
             list($current_products_height, $current_products_length) = array($current_products_length, $current_products_stacked_height);
             if ((!$length_changed && $total_length == $current_products_height) or ($length_changed && $total_length < $current_products_height)) {
               $length_changed = true;
               $total_length = $current_products_length;
             }   
-          }
-          $box_destination = '';
-          if ($order->delivery['country']['id'] == STORE_COUNTRY) {
-            $box_destination == 'domestic';
-          } else {
-            $box_destination == 'international';
-          }
-          if ($box_destination == 'domestic') {
-            $possible_boxes_query_where = "(destination = 'domestic' OR destination = 'both') ";
-          } else {
-            $possible_boxes_query_where = "(destination = 'international' OR destination = 'both') ";
           }
           // get the boxes dimensions that could fit these products if they were layered
           $possible_boxes_query = "SELECT length, width, height FROM " . TABLE_SHIPPING_BOXES_MANAGER . " 
@@ -223,10 +206,10 @@ class shippingBoxesManagerObserver extends base
             $box_length = $total_length;
             $box_width = $total_width;
           }
-          $num_per_layer = $product_by_dimension['quantity']; 
+          $num_per_layer = $products_properties['quantity']; 
           // check how many times a product can be stacked hoirzontally within the max length of the box
           if ($current_products_length > $box_length) {
-            $individual_products_length = $current_products_length / $product_by_dimension['quantity'];
+            $individual_products_length = $current_products_length / $products_properties['quantity'];
             // how many times does the individual products length fit into the box length
             $num_per_layer = floor($box_length / $individual_products_length);
             $current_products_length = $num_per_layer * $individual_products_length;
@@ -245,8 +228,9 @@ class shippingBoxesManagerObserver extends base
               $remaining_quantity = 0;                
             }
           }
-          $new_products_height += $current_products_height * $layers / $product_by_dimension['quantity'];
+          $new_products_height += $current_products_height * $layers / $products_properties['quantity'];
         }
+        
         $total_height = $new_products_height;
         $volume = $total_length * $total_width * $total_height;
         $num_boxes = 0;
@@ -278,6 +262,7 @@ class shippingBoxesManagerObserver extends base
           $GLOBALS['total_weight'] = $new_total_weight;
           $GLOBALS['shipping_weight'] = $GLOBALS['total_weight'] / $GLOBALS['shipping_num_boxes'];
         }
+        */
         
         /*
         echo '<pre>';
@@ -287,5 +272,32 @@ class shippingBoxesManagerObserver extends base
       } 
     }   
   }
+  
+  function array_msort($array, $cols) {
+    $colarr = array();
+    foreach ($cols as $col => $order) {
+        $colarr[$col] = array();
+        foreach ($array as $k => $row) { $colarr[$col]['_'.$k] = strtolower($row[$col]); }
+    }
+    $params = array();
+    foreach ($cols as $col => $order) {
+        $params[] =& $colarr[$col];
+        $params = array_merge($params, (array)$order);
+    }
+    call_user_func_array('array_multisort', $params);
+    $ret = array();
+    $keys = array();
+    $first = true;
+    foreach ($colarr as $col => $arr) {
+        foreach ($arr as $k => $v) {
+            if ($first) { $keys[$k] = substr($k,1); }
+            $k = $keys[$k];
+            if (!isset($ret[$k])) $ret[$k] = $array[$k];
+            $ret[$k][$col] = $array[$k][$col];
+        }
+        $first = false;
+    }
+    return $ret;
+  }  
 }
 // eof
