@@ -107,14 +107,11 @@ class shippingBoxesManagerObserver extends base
               } elseif ($products_attributes->fields['products_attributes_height_prefix'] == '-') {
                 $current_products_height -= $products_attributes->fields['products_attributes_height'];
               }
-              // weight is already added to the product
-              /*
               if ($products_attributes->fields['products_attributes_weight_prefix'] == '+') {
                 $current_products_weight += $products_attributes->fields['products_attributes_weight'];
               } elseif ($products_attributes->fields['products_attributes_weight_prefix'] == '-') {
                 $current_products_weight -= $products_attributes->fields['products_attributes_weight'];
               }
-              */                            
             }
           }
           $current_volume = $current_products_length * $current_products_width * $current_products_height;
