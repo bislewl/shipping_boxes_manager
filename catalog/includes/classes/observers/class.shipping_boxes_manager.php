@@ -226,9 +226,25 @@ class shippingBoxesManagerObserver extends base
               $remaining_volume = $box->fields['volume'] - $current_products_volume;
               $packed_boxes[] = array('length' => $box->fields['length'], 'width' => $box->fields['width'], 'height' => $box->fields['height'], 'weight' => $box->fields['weight'] + $current_products_weight, 'remaining_volume' => $remaining_volume);
             } else {
-              $packed_boxes[] = array('length' => $current_products_length, 'width' => $box->fields['width'], 'height' => $boxes->fields['height'], 'weight' => $box->fields['weight'] + $current_products_weight, 'remaining_volume' => 0);
+	            // get the largest box that will fit the current product
+	            $box = $db->Execute("SELECT length, width, height, volume FROM " . TABLE_SHIPPING_BOXES_MANAGER . "
+	                                 WHERE length >= '" . $current_products_length . "'
+	                                 AND width >= '" . $current_products_width . "'
+	                                 AND height >= '" . $current_products_height . "'
+	                                 AND volume >= '" . $current_products_volume . "'
+	                                 AND " . $possible_boxes_query_where . "
+	                                 ORDER BY volume DESC
+	                                 LIMIT 1;");
+							if ($box->RecordCount() > 0) {	                                 
+	              $remaining_volume = $box->fields['volume'] - $current_products_volume;
+	              $packed_boxes[] = array('length' => $box->fields['length'], 'width' => $box->fields['width'], 'height' => $box->fields['height'], 'weight' => $box->fields['weight'] + $current_products_weight, 'remaining_volume' => $remaining_volume);
+	              // add the weight of the box to the products
+	              $new_total_weight += $box->fields['weight']; 
+							} else {                                 
+								// pack the product by itself           	
+	              $packed_boxes[] = array('length' => $current_products_length, 'width' => $current_products_width, 'height' => $current_products_height, 'weight' => $current_products_weight, 'remaining_volume' => 0);
+							}
             }
-            $new_total_weight += $box->fields['weight']; 
             $total_remaining_volume -= $current_products_volume;
           }
         }
