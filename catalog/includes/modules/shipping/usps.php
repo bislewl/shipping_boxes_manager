@@ -221,9 +221,9 @@ class usps extends base {
           //$shipping_weight = round(($total_weight / $shipping_num_boxes), 2); // use our number of packages rather than Zen Cart's calculation, package weight will still have to be an average since we don't know which products are in the box.
           $width = $height = $length = 0;
           foreach ($packed_boxes as $packed_box) {
-            if ($packed_box['width'] > $width) $this->width = $packed_box['width'];
-            if ($packed_box['height'] > $height) $this->height = $packed_box['height'];
-            if ($packed_box['length'] > $length) $this->length = $packed_box['length'];
+            if ($packed_box['width'] > $width) $this->dimensions['width'] = $packed_box['width'];
+            if ($packed_box['height'] > $height) $this->dimensions['height'] = $packed_box['height'];
+            if ($packed_box['length'] > $length) $this->dimensions['length'] = $packed_box['length'];
           }                                                                                                                                
           $usps_shipping_weight = $shipping_weight;
         }
