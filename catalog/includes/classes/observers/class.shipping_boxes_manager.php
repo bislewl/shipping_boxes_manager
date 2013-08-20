@@ -63,6 +63,7 @@ class shippingBoxesManagerObserver extends base
           }                                   
           $products_properties = $db->Execute('SELECT products_length, products_width, products_height, products_ready_to_ship, products_weight, nestable, nestable_percentage FROM '.TABLE_PRODUCTS.' WHERE products_id='.(int)$product['id']);
           if ($products_properties->fields['products_ready_to_ship']) {
+          	//print_r($product);
             // skip this product
             for ($i=0; $i<sizeof($product['quantity']); $i++) {
               $packed_boxes[] = array('box ID' => 'ready to ship', 'length' => $products_properties->fields['products_length'], 'width' => $products_properties->fields['products_width'], 'height' => $products_properties->fields['products_height'], 'weight' => $product['weight'], 'remaining_volume' => 0);
@@ -119,7 +120,7 @@ class shippingBoxesManagerObserver extends base
           }
           $current_volume = $current_products_length * $current_products_width * $current_products_height;
           // add current products volume to total volume
-          $total_volume += $current_volume;
+          //$total_volume += $current_volume;
           // set the max length, width, and height (height will be recalculated if nesting is enabled lower down in the code)
           if ($current_products_length > $max_length) $max_length = $current_products_length;
           if ($current_products_width > $max_width) $max_width = $current_products_width; 
@@ -153,44 +154,120 @@ class shippingBoxesManagerObserver extends base
         /**/ 
         //echo ' -->';
         // loop through products til one larger nestable product is found
+        //$products_by_dimensions2 = $products_by_dimensions;
         $found_nestable = true; // default
         while($found_nestable) {
           $found_nestable = false; // set to false to avoid infinite loop
           foreach($products_by_dimensions as $key => $product_properties) {
           //for ($j=0; $j<sizeof($products_by_dimensions); $j++) {                                                                                    
             // first nestable product found
-            if ($product_properties['nestable'] == 1) {
+            if ($products_by_dimensions[$key]['nestable'] == 1) {
               // loop through products and find another nestable product that this product can fit inside
               foreach($products_by_dimensions as $key2 => $product_properties2) {
               //for ($i=0; $i<sizeof($products_by_dimensions); $i++) {
                 // if product is nestable and not the current product we are on
-                if ($product_properties2['nestable'] == 1 && $key != $key2) {
-                  // check if product is larger and moving forward keep the $product_properties2 product as the larger product
-                  if ($product_properties2['volume'] >= $product_properties['volume'] && 
-                    $product_properties2['dimensions']['length'] >= $product_properties['dimensions']['length'] && 
-                    $product_properties2['dimensions']['width'] >= $product_properties['dimensions']['width'] &&
-                    $product_properties2['dimensions']['height'] >= $product_properties['dimensions']['height']) 
+                if ($products_by_dimensions[$key2]['nestable'] == 1 && $key != $key2) {
+                	/*
+                	echo 'Comparing:<br /><pre>';
+                	print_r($products_by_dimensions[$key]);
+                	print_r($products_by_dimensions[$key2]);
+                	echo '</pre>';
+                	*/
+                  // check if product is larger and moving forward keep the $products_by_dimensions[$key2] product as the larger product
+                  if (/*$products_by_dimensions[$key]['volume'] >= $products_by_dimensions[$key2]['volume'] &&*/ 
+                    $products_by_dimensions[$key]['dimensions']['length'] >= $products_by_dimensions[$key2]['dimensions']['length'] && 
+                    $products_by_dimensions[$key]['dimensions']['width'] >= $products_by_dimensions[$key2]['dimensions']['width']/* &&
+                    $products_by_dimensions[$key]['dimensions']['height'] >= $products_by_dimensions[$key2]['dimensions']['height']*/) 
                   {
                   	$new_nested_height = 0;
-                  	// if products are the same size and the nestable percentage is 100 or the products are not the same size, then the smaller product can just hide inside the larger product
-                  	if ( (($product_properties2['dimensions']['length'] >= $product_properties['dimensions']['length'] && $product_properties2['dimensions']['width'] >= $product_properties['dimensions']['width'] && $products_by_dimensions[$key2]['dimensions']['height'] >= $products_by_dimensions[$key]['dimensions']['height']) && $product_properties['nestable_percentage'] == 100) || ($product_properties2['dimensions']['length'] > $product_properties['dimensions']['length'] && $product_properties2['dimensions']['width'] > $product_properties['dimensions']['width'] && $products_by_dimensions[$key2]['dimensions']['height'] >= $products_by_dimensions[$key]['dimensions']['height'])) { //|| (($product_properties2['dimensions']['length'] > $product_properties['dimensions']['length'] && $product_properties2['dimensions']['width'] > $product_properties['dimensions']['width']) && $product_properties2['dimensions']['height'] > ($product_properties['nestable_percentage'] != '' ? $product_properties['nestable_percentage'] / 100 * $product_properties['dimensions']['height'] : $product_properties['dimensions']['height']))) {
+                  	// if products are the same size and the nestable percentage is 100
+                  	if ($products_by_dimensions[$key2]['nestable_percentage'] == 100) { //|| (($products_by_dimensions[$key2]['dimensions']['length'] > $products_by_dimensions[$key]['dimensions']['length'] && $products_by_dimensions[$key2]['dimensions']['width'] > $products_by_dimensions[$key]['dimensions']['width']) && $products_by_dimensions[$key2]['dimensions']['height'] > ($products_by_dimensions[$key]['nestable_percentage'] != '' ? $products_by_dimensions[$key]['nestable_percentage'] / 100 * $products_by_dimensions[$key]['dimensions']['height'] : $products_by_dimensions[$key]['dimensions']['height']))) {
 	                    // keep the height set to the larger product
 	                    //echo $products_by_dimensions[$key2]['dimensions']['height'] . ' ' . $products_by_dimensions[$key]['dimensions']['height'] . '<br />';
-                    	$new_nested_height = $products_by_dimensions[$key2]['dimensions']['height'];											
-										} elseif ($products_by_dimensions[$key2]['dimensions']['height'] >= $products_by_dimensions[$key]['dimensions']['height'] && $product_properties['nestable_percentage'] < 100) {
+	                    //if ($products_by_dimensions[$key]['dimensions']['height'] >= $products_by_dimensions[$key2]['dimensions']['height']) {
+                    		$new_nested_height = $products_by_dimensions[$key]['dimensions']['height'];
+											//} else {
+												//$new_nested_height = $products_by_dimensions[$key2]['dimensions']['height'];
+											//}
+											//echo $new_nested_height . '<br />';										
+										} elseif (/*$products_by_dimensions[$key]['dimensions']['height'] >= $products_by_dimensions[$key2]['dimensions']['height'] && */$products_by_dimensions[$key2]['nestable_percentage'] < 100) {
 											// products are the same size but nest partially
 	                    // set the height to the taller of the two products
-	                    $nestable_percentage = $product_properties['nestable_percentage'] / 100;
+	                    $nestable_percentage = 1 - $products_by_dimensions[$key2]['nestable_percentage'] / 100;
                     	$new_nested_height = $products_by_dimensions[$key2]['dimensions']['height'] + ($nestable_percentage * $products_by_dimensions[$key]['dimensions']['height']);
-                    	$new_nested_volume = $product_properties2['dimensions']['length'] * $product_properties2['dimensions']['width'] * $new_nested_height;  
+                    	//echo $new_nested_height . '<br />';
+                    	$new_nested_volume = $products_by_dimensions[$key2]['dimensions']['length'] * $products_by_dimensions[$key2]['dimensions']['width'] * $new_nested_height;  
 										} else {
 											continue;
 										}
 										
 										// check that a large enough box exists for the nested product
 										$available_boxes = $db->Execute("SELECT box_id FROM " . TABLE_SHIPPING_BOXES_MANAGER . "
-																                     WHERE length >= '" . $product_properties2['dimensions']['length'] . "'
-																                     AND width >= '" . $product_properties2['dimensions']['width'] . "'
+																                     WHERE length >= '" . $products_by_dimensions[$key2]['dimensions']['length'] . "'
+																                     AND width >= '" . $products_by_dimensions[$key2]['dimensions']['width'] . "'
+																                     AND height >= '" . $new_nested_height . "'
+																                     AND volume >= '" . $new_nested_volume . "'
+																                     AND " . $possible_boxes_query_where . "
+																                     ORDER BY volume ASC
+																                     LIMIT 1;"); 
+										// large box exists
+										if ($available_boxes->RecordCount() > 0) {
+											$old_height = $products_by_dimensions[$key]['dimensions']['height'];
+	                    // set the new height
+	                    $products_by_dimensions[$key]['dimensions']['height'] = $new_nested_height;
+	                    // set the new volume
+	                    $products_by_dimensions[$key]['volume'] = $new_nested_volume;
+	                    // add weight of current product to the larger product
+	                    $products_by_dimensions[$key]['weight'] += $products_by_dimensions[$key2]['weight'];
+	                    // subtract the height of the smaller product from the max height and subtract the old height of the currently nested product, then add the new nested height
+	                    $max_height = ($max_height - $old_height - $products_by_dimensions[$key2]['dimensions']['height']) + $new_nested_height;;
+	                    //echo 'set 1: ' . $key . ': old height: ' . $old_height . ' new height: ' . $new_nested_height . ' max height: ' . $max_height . '<br />'; 	                    
+	                    // unset smaller product
+	                    //echo 'unset: ' . $key2 . '<br />';
+											//echo '<pre>';
+											//print_r($products_by_dimensions[$key]);
+											//echo '</pre>'; 	                     
+	                    unset($products_by_dimensions[$key2]);
+	                    $found_nestable = true;
+	                    	                    
+	                    break;
+										} else {
+											// large box does not exist
+											// stop future nesting of this product
+											$products_by_dimensions[$key]['nestable'] = 0; 											
+											//continue;
+										}
+                  } elseif (/*$products_by_dimensions[$key2]['volume'] >= $products_by_dimensions[$key]['volume'] &&*/ 
+                    $products_by_dimensions[$key2]['dimensions']['length'] >= $products_by_dimensions[$key]['dimensions']['length'] && 
+                    $products_by_dimensions[$key2]['dimensions']['width'] >= $products_by_dimensions[$key]['dimensions']['width']/* &&
+                    $products_by_dimensions[$key2]['dimensions']['height'] >= $products_by_dimensions[$key]['dimensions']['height']*/) 
+                  {
+                  	$new_nested_height = 0;
+                  	// if products are the same size and the nestable percentage is 100
+                  	if ($products_by_dimensions[$key2]['nestable_percentage'] == 100) { //|| (($products_by_dimensions[$key2]['dimensions']['length'] > $products_by_dimensions[$key]['dimensions']['length'] && $products_by_dimensions[$key2]['dimensions']['width'] > $products_by_dimensions[$key]['dimensions']['width']) && $products_by_dimensions[$key2]['dimensions']['height'] > ($products_by_dimensions[$key]['nestable_percentage'] != '' ? $products_by_dimensions[$key]['nestable_percentage'] / 100 * $products_by_dimensions[$key]['dimensions']['height'] : $products_by_dimensions[$key]['dimensions']['height']))) {
+	                    // keep the height set to the larger product
+	                    //echo $products_by_dimensions[$key2]['dimensions']['height'] . ' ' . $products_by_dimensions[$key]['dimensions']['height'] . '<br />';
+	                    //if ($products_by_dimensions[$key]['dimensions']['height'] >= $products_by_dimensions[$key2]['dimensions']['height']) {
+                    		$new_nested_height = $products_by_dimensions[$key2]['dimensions']['height'];
+											//} else {
+												//$new_nested_height = $products_by_dimensions[$key2]['dimensions']['height'];
+											//}
+											//echo $new_nested_height . '<br />';										
+										} elseif (/*$products_by_dimensions[$key]['dimensions']['height'] >= $products_by_dimensions[$key2]['dimensions']['height'] && */$products_by_dimensions[$key2]['nestable_percentage'] < 100) {
+											// products are the same size but nest partially
+	                    // set the height to the taller of the two products
+	                    $nestable_percentage = 1 - $products_by_dimensions[$key]['nestable_percentage'] / 100;
+                    	$new_nested_height = $products_by_dimensions[$key]['dimensions']['height'] + ($nestable_percentage * $products_by_dimensions[$key2]['dimensions']['height']);
+                    	//echo $new_nested_height . '<br />';
+                    	$new_nested_volume = $products_by_dimensions[$key]['dimensions']['length'] * $products_by_dimensions[$key]['dimensions']['width'] * $new_nested_height;  
+										} else {
+											continue;
+										}
+										
+										// check that a large enough box exists for the nested product
+										$available_boxes = $db->Execute("SELECT box_id FROM " . TABLE_SHIPPING_BOXES_MANAGER . "
+																                     WHERE length >= '" . $products_by_dimensions[$key]['dimensions']['length'] . "'
+																                     AND width >= '" . $products_by_dimensions[$key]['dimensions']['width'] . "'
 																                     AND height >= '" . $new_nested_height . "'
 																                     AND volume >= '" . $new_nested_volume . "'
 																                     AND " . $possible_boxes_query_where . "
@@ -206,29 +283,30 @@ class shippingBoxesManagerObserver extends base
 	                    // add weight of current product to the larger product
 	                    $products_by_dimensions[$key2]['weight'] += $products_by_dimensions[$key]['weight'];
 	                    // subtract the height of the smaller product from the max height and subtract the old height of the currently nested product, then add the new nested height
-	                    $max_height = ($max_height - $old_height - $products_by_dimensions[$key]['dimensions']['height']) + $new_nested_height;
-	                    //echo $key2 . ': old height: ' . $old_height . ' new height: ' . $new_nested_height . ' max height: ' . $max_height . '<br />'; 	                    
+	                    $max_height = ($max_height - $old_height - $products_by_dimensions[$key]['dimensions']['height']) + $new_nested_height;;
+	                    //echo 'set 2: ' . $key . ': old height: ' . $old_height . ' new height: ' . $new_nested_height . ' max height: ' . $max_height . '<br />'; 	                    
 	                    // unset smaller product
-	                    //echo 'unset: ' . $key . '<br />'; 
-	                    unset($products_by_dimensions[$key]);                                                                                                      
+	                    //echo 'unset: ' . $key2 . '<br />'; 
+	                    unset($products_by_dimensions[$key]);
 	                    $found_nestable = true;
 	                    	                    
-	                    continue 2;
+	                    break;
 										} else {
 											// large box does not exist
 											// stop future nesting of this product
-											$product_properties2['nestable'] = 0; 											
+											$products_by_dimensions[$key2]['nestable'] = 0; 											
 											//continue;
 										} 
-                  }/* elseif ($product_properties['volume'] >= $product_properties2['volume'] && $product_properties['dimensions']['length'] >= $product_properties2['dimensions']['length'] && $product_properties['dimensions']['width'] >= $product_properties2['dimensions']['width'] && $product_properties['dimensions']['height'] >= $product_properties2['dimensions']['height']) {
-                    // check the opposite direction
-                    // add weight of current product to the larger product
-                    $products_by_dimensions[$key]['weight'] += $product_properties2['weight'];
-                    // unset smaller product 
-                    unset($products_by_dimensions[$key2]);
-                    $found_nestable = true; 
-                  }*/
+                  }
                 }
+				        /*
+				        if (MODULE_SHIPPING_BOXES_MANAGER_DEBUG == 'true') {
+					        echo '<p>Products (after nesting):</p>';        
+					        echo '<pre>';
+					        print_r($products_by_dimensions); 
+					        echo '</pre>';
+								}
+								*/                
               }
             } 
           }
@@ -241,6 +319,13 @@ class shippingBoxesManagerObserver extends base
 	        print_r($products_by_dimensions); 
 	        echo '</pre>';
 				}
+				
+				// calculate total volume
+				foreach ($products_by_dimensions as $product_by_dimensions) {
+					$total_volume += $product_by_dimensions['volume'];
+				}
+				
+        //echo 'Total Volume: ' . $total_volume . '<br />';
         /**/
         //echo ' -->';      
         // sort the array by volume, largest to smallest product     
@@ -262,6 +347,7 @@ class shippingBoxesManagerObserver extends base
             foreach ($packed_boxes as $current_box_key => $box_properties) {
               if (($box_properties['remaining_volume'] >= $current_products_volume) && ($box_properties['length'] >= $current_products_length) && ($box_properties['width'] >= $current_products_width) && ($box_properties['height'] >= $current_products_height)) {
                 $packed_boxes[$current_box_key]['remaining_volume'] = $box_properties['remaining_volume'] - $current_products_volume;
+                $packed_boxes[$current_box_key]['weight'] += $current_products_weight;
                 $total_remaining_volume -= $current_products_volume;
                 $found_box = true;
                 break;
