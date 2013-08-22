@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS shipping_boxes_manager (
    PRIMARY KEY ( `box_id` )
 );
 ALTER TABLE products ADD nestable tinyint(1) NULL;
+ALTER TABLE products ADD nestable_percentage tinyint(3) NULL;
 
 SET @configuration_group_id=0; 
 SELECT (@configuration_group_id:=configuration_group_id) 
