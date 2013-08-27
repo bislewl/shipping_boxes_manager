@@ -127,30 +127,10 @@ class ups extends base {
   function quote($method = '') {
     global $_POST, $order, $shipping_weight, $shipping_num_boxes;
     
-        // shipping boxes manager
-      if (MODULE_SHIPPING_BOXES_MANAGER_STATUS == 'true') {
-        global $packed_boxes, $total_weight;
-        if (is_array($packed_boxes) && sizeof($packed_boxes) && $total_weight > 0) {
-          //$shipping_num_boxes = sizeof($packed_boxes);
-          //$shipping_weight = round(($total_weight / $shipping_num_boxes), 2); // use our number of packages rather than Zen Cart's calculation, package weight will still have to be an average since we don't know which products are in the box.
-          $width = $height = $length = 0;
-          $sba_shipping_weight = 0;
-          
-          foreach ($packed_boxes as $packed_box) {
-            if ($packed_box['width'] > $width) $this->dimensions['width'] = $packed_box['width'];
-            if ($packed_box['height'] > $height) $this->dimensions['height'] = $packed_box['height'];
-            if ($packed_box['length'] > $length) $this->dimensions['length'] = $packed_box['length'];
-            $sba_box_cubic = $packed_box['width']*$packed_box['height']*$packed_box['length'];
-            $sba_shipping_weight = ceil($sba_box_cubic/139) + $sba_shipping_weight;
-            
-          }
-          //echo $sba_shipping_weight."\n";
-          
-          if($sba_shipping_weight >= $shipping_weight){
-              $shipping_weight = $sba_shipping_weight;
-          }
-        }
-      }       
+    // shipping boxes manager
+    if (MODULE_SHIPPING_BOXES_MANAGER_STATUS == 'true') {
+      global $packed_boxes;    
+    }    
 
     if ( (zen_not_null($method)) && (isset($this->types[$method])) ) {
       $prod = $method;
@@ -473,16 +453,16 @@ class ups extends base {
     // EOF: UPS USPS
 
     $body_array = explode("\n", $body);
-    
-/*
- //DEBUG ONLY
+
+/* //DEBUG ONLY
     $n = sizeof($body_array);
     for ($i=0; $i<$n; $i++) {
       $result = explode('%', $body_array[$i]);
       print_r($result);
     }
-  //  die('END');
+    die('END');
 */
+
     $returnval = array();
     $errorret = 'error'; // only return 'error' if NO rates returned
 
