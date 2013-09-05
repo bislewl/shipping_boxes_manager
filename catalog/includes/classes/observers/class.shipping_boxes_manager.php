@@ -61,7 +61,7 @@ class shippingBoxesManagerObserver extends base
           if (substr($product['model'], 0, 4) == 'GIFT' || zen_get_products_virtual((int)$product['id'])) {
             continue;
           }                                   
-          $products_properties = $db->Execute('SELECT products_length, products_width, products_height, products_ready_to_ship, products_weight, nestable, nestable_percentage FROM '.TABLE_PRODUCTS.' WHERE products_id='.(int)$product['id']);
+          $products_properties = $db->Execute('SELECT products_length, products_width, products_height, products_ready_to_ship, products_weight, nestable, nestable_percentage, nestable_group_code FROM '.TABLE_PRODUCTS.' WHERE products_id='.(int)$product['id']);
           if ($products_properties->fields['products_ready_to_ship']) {
           	//print_r($product);
             // skip this product
@@ -135,7 +135,8 @@ class shippingBoxesManagerObserver extends base
               'volume' => $current_volume, 
               'weight' => $current_products_weight,
               'nestable' => $products_properties->fields['nestable'],
-              'nestable_percentage' => $products_properties->fields['nestable_percentage']  
+              'nestable_percentage' => $products_properties->fields['nestable_percentage'],
+              'nestable_group_code' => $products_properties->fields['nestable_group_code']   
               //'quantity' => $product['quantity'],
             );           
             $new_total_weight += $current_products_weight;
@@ -167,6 +168,20 @@ class shippingBoxesManagerObserver extends base
               //for ($i=0; $i<sizeof($products_by_dimensions); $i++) {
                 // if product is nestable and not the current product we are on
                 if ($products_by_dimensions[$key2]['nestable'] == 1 && $key != $key2) {
+                	// check that product 2 is nestable inside product 1
+                	$products_nestable = false;
+                	if ($products_by_dimensions[$key2]['nestable_group_code'] == '' && $products_by_dimensions[$key]['nestable_group_code'] == '') $products_nestable = true;
+                	if ($products_by_dimensions[$key2]['nestable_group_code'] != '' && $products_by_dimensions[$key]['nestable_group_code'] != '') {
+                		// check that products can nest
+                		$products_nestable = $db->Execute("SELECT nesting_percentage FROM " . TABLE_PRODUCTS_NESTING_GROUPS . " WHERE group_code = '" . $products_by_dimensions[$key2]['nestable_group_code'] . "' AND compatible_group_code = '" . $products_by_dimensions[$key]['nestable_group_code'] . "' LIMIT 1;");
+										if ($products_nestable->RecordCount() > 0) {
+											$products_by_dimensions[$key2]['nestable_percentage'] = $products_nestable->fields['nesting_percentage'];
+											$products_nestable = true;
+										} else {
+											$products_nestable = false;
+										}
+									}
+									if ($products_nestable == false) continue;
                 	/*
                 	echo 'Comparing:<br /><pre>';
                 	print_r($products_by_dimensions[$key]);

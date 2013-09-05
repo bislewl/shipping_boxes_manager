@@ -9,8 +9,11 @@
 if (!defined('IS_ADMIN_FLAG')) {
   die('Illegal Access');
 }
-  define('FILENAME_SHIPPING_BOXES_MANAGER', 'shipping_boxes_manager');
-  define('TABLE_SHIPPING_BOXES_MANAGER', DB_PREFIX . 'shipping_boxes_manager');
 
-define('BOX_SHIPPING_BOXES_MANAGER', 'Shipping Boxes Manager');
+define('FILENAME_SHIPPING_BOXES_MANAGER', 'shipping_boxes_manager');
+define('FILENAME_PRODUCTS_NESTING_MANAGER', 'products_nesting_manager');
+
+define('TABLE_SHIPPING_BOXES_MANAGER', DB_PREFIX . 'shipping_boxes_manager');
+define('TABLE_PRODUCTS_NESTING_GROUPS', DB_PREFIX . 'products_nesting_groups');
+
 define('BOX_SHIPPING_BOXES_MANAGER_CONFIGURATION', 'Shipping Boxes Manager Configuration');
