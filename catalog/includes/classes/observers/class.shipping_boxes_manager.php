@@ -172,16 +172,31 @@ class shippingBoxesManagerObserver extends base
                 	$products_nestable = false;
                 	if ($products_by_dimensions[$key2]['nestable_group_code'] == '' && $products_by_dimensions[$key]['nestable_group_code'] == '') $products_nestable = true;
                 	if ($products_by_dimensions[$key2]['nestable_group_code'] != '' && $products_by_dimensions[$key]['nestable_group_code'] != '') {
-                		// check that products can nest
-                		$products_nestable = $db->Execute("SELECT nesting_percentage FROM " . TABLE_PRODUCTS_NESTING_GROUPS . " WHERE group_code = '" . $products_by_dimensions[$key2]['nestable_group_code'] . "' AND compatible_group_code = '" . $products_by_dimensions[$key]['nestable_group_code'] . "' LIMIT 1;");
-										if ($products_nestable->RecordCount() > 0) {
-											$products_by_dimensions[$key2]['nestable_percentage'] = $products_nestable->fields['nesting_percentage'];
-											$products_nestable = true;
-										} else {
-											$products_nestable = false;
+                		$minimum_nesting_percentage = 0;
+                		$nesting_groups_1 = explode(',', $products_by_dimensions[$key2]['nestable_group_code']);
+                		$nesting_groups_2 = explode(',', $products_by_dimensions[$key]['nestable_group_code']);
+                		foreach($nesting_groups_1 as $nesting_group_1) {
+                			foreach($nesting_groups_2 as $nesting_group_2) {
+                				// check that products can nest
+                				$products_nestable = $db->Execute("SELECT nesting_percentage FROM " . TABLE_PRODUCTS_NESTING_GROUPS . " WHERE group_code = '" . $nesting_group_1 . "' AND compatible_group_code = '" . $nesting_group_2 . "' LIMIT 1;");
+												if ($products_nestable->RecordCount() > 0) {
+													if ($minimum_nesting_percentage < $products_nestable->fields['nesting_percentage']) {
+														$minimum_nesting_percentage = $products_nestable->fields['nesting_percentage'];
+													}
+													$products_nestable = true;
+												} else {
+													$products_nestable = false;
+													break 2;
+												}                				
+											}
+										}
+										if ($products_nestable) {
+											$products_by_dimensions[$key2]['nestable_percentage'] = $minimum_nesting_percentage;
 										}
 									}
-									if ($products_nestable == false) continue;
+									if ($products_nestable == false) {
+										continue;
+									}
                 	/*
                 	echo 'Comparing:<br /><pre>';
                 	print_r($products_by_dimensions[$key]);
@@ -301,7 +316,12 @@ class shippingBoxesManagerObserver extends base
 	                    $max_height = ($max_height - $old_height - $products_by_dimensions[$key]['dimensions']['height']) + $new_nested_height;;
 	                    //echo 'set 2: ' . $key . ': old height: ' . $old_height . ' new height: ' . $new_nested_height . ' max height: ' . $max_height . '<br />'; 	                    
 	                    // unset smaller product
-	                    //echo 'unset: ' . $key2 . '<br />'; 
+	                    //echo 'unset: ' . $key2 . '<br />';
+	                    // check to see if the nesting group will need to be updated
+	                    if ($products_by_dimensions[$key]['nestable_group_code'] != $products_by_dimensions[$key2]['nestable_group_code']) {
+	                    	$products_by_dimensions[$key2]['nestable_group_code'] .= ',' . $products_by_dimensions[$key]['nestable_group_code'];
+											}
+	                    // create a new nestable group 
 	                    unset($products_by_dimensions[$key]);
 	                    $found_nestable = true;
 	                    	                    
