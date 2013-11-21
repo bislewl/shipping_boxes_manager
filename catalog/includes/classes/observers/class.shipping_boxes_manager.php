@@ -402,6 +402,8 @@ class shippingBoxesManagerObserver extends base
             if ($box->RecordCount() > 0) {
               $remaining_volume = $box->fields['volume'] - $current_products_volume;
               $packed_boxes[] = array('box ID' => $box->fields['box_id'], 'length' => $box->fields['length'], 'width' => $box->fields['width'], 'height' => $box->fields['height'], 'weight' => $box->fields['weight'] + $current_products_weight, 'remaining_volume' => $remaining_volume);
+	            // add the weight of the box to the products
+	            $new_total_weight += $box->fields['weight'];             
             } else {
 	            // get the largest box that will fit the current product (since our largest box couldn't fit all of the products, we need to 
 	            $box = $db->Execute("SELECT box_id, length, width, height, volume FROM " . TABLE_SHIPPING_BOXES_MANAGER . "
