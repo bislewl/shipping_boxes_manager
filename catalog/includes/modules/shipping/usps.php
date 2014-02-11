@@ -905,6 +905,30 @@ MODULE_SHIPPING_USPS_HEIGHT 1.625
         {
           continue;
         }
+        
+        if (MODULE_SHIPPING_BOXES_MANAGER_STATUS == 'true') {
+               $width = $this->dimensions['width'];
+               $length = $this->dimensions['length'];
+               $height = $this->dimensions['height'];
+               $girth = 0;
+                        
+                         $SBM_additonal_size = '<Size>REGULAR</Size>';
+                        if($width >= 12){
+                            $SBM_additonal_size = '<Size>LARGE</Size>';
+                            $girth = $width + $width + $length + $length;
+                            $ground_servs = '<GroundOnly>true</GroundOnly>';
+                        }
+                        
+              $SBM_additonal_dem = '';
+              $SBM_additonal_dem = '<Width>' . $width . '</Width>' .
+                '<Length>' . $length . '</Length>' .
+                '<Height>' . $height . '</Height>' .
+                '<Girth>' . $girth . '</Girth>';
+        }
+        else{
+            $SBM_additonal_dem = '';
+            $SBM_additonal_size = '<Size>REGULAR</Size>';
+        }
 
 //echo 'USPS $requested_type: ' . $requested_type . ' $service: ' . $service . ' $Container: ' . $Container . '<br>';
         $request .=  '<Package ID="' . $package_count . '">' .
@@ -915,9 +939,8 @@ MODULE_SHIPPING_USPS_HEIGHT 1.625
                      '<ZipDestination>' . $ZipDestination . '</ZipDestination>' .
                      '<Pounds>' . $this->pounds . '</Pounds>' .
                      '<Ounces>' . $this->ounces . '</Ounces>' .
-                     '<Container>' . $Container . '</Container>' .
-                     '<Size>REGULAR</Size>' .
-                 '<Value>' . number_format($order->info['subtotal'] > 0 ? $order->info['subtotal'] + $order->info['tax'] : $_SESSION['cart']->total, 2, '.', '') . '</Value>' .
+                     '<Container>' . $Container . '</Container>' .$SBM_additonal_size.$SBM_additonal_dem.
+                     '<Value>' . number_format($order->info['subtotal'] > 0 ? $order->info['subtotal'] + $order->info['tax'] : $_SESSION['cart']->total, 2, '.', '') . '</Value>' .
                      '<Machinable>' . ($this->machinable == 'True' ? 'TRUE' : 'FALSE') . '</Machinable>' .
                      ($this->getTransitTime && $this->transitTimeCalculationMode == 'NEW' ? '<ShipDate>' . $ship_date . '</ShipDate>' : '') .
                      '</Package>';
@@ -1000,6 +1023,8 @@ MODULE_SHIPPING_USPS_HEIGHT 1.625
                $width = $this->dimensions['width'];
                $length = $this->dimensions['length'];
                $height = $this->dimensions['height'];
+               $girth = 0;
+               echo $width."x".$length."x".$height;
       }
       // adjust <ValueOfContents> to not exceed $2499 per box
       global $shipping_num_boxes;
