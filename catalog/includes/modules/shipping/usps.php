@@ -1109,14 +1109,14 @@ MODULE_SHIPPING_USPS_HEIGHT 1.625
       case 'production':
 // 01-02-2011
 // 01-22-2012
-      $usps_server = 'http://production.shippingapis.com';
+      $usps_server = 'https://secure.shippingapis.com';
       $api_dll = 'shippingapi.dll';
       break;
       case 'test':
       default:
 // 09-25-2013
       $usps_server = 'http://stg-production.shippingapis.com';
-      $api_dll = 'ShippingApi.dll';
+      $api_dll = 'shippingapitest.dll';
       break;
     }
 
