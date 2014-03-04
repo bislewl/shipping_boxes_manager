@@ -173,8 +173,8 @@ class shippingBoxesManagerObserver extends base
                 	if ($products_by_dimensions[$key2]['nestable_group_code'] == '' && $products_by_dimensions[$key]['nestable_group_code'] == '') $products_nestable = true;
                 	if ($products_by_dimensions[$key2]['nestable_group_code'] != '' && $products_by_dimensions[$key]['nestable_group_code'] != '') {
                 		$minimum_nesting_percentage = 0;
-                		$nesting_groups_1 = explode(',', $products_by_dimensions[$key2]['nestable_group_code']);
-                		$nesting_groups_2 = explode(',', $products_by_dimensions[$key]['nestable_group_code']);
+                		$nesting_groups_1 = explode(',', str_replace(' ', '', $products_by_dimensions[$key2]['nestable_group_code']));
+                		$nesting_groups_2 = explode(',', str_replace(' ', '', $products_by_dimensions[$key]['nestable_group_code']));
                 		foreach($nesting_groups_1 as $nesting_group_1) {
                 			foreach($nesting_groups_2 as $nesting_group_2) {
                 				// check that products can nest
