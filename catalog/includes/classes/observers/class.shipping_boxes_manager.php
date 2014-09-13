@@ -62,40 +62,25 @@ class shippingBoxesManagerObserver extends base
             continue;
           }                                   
           $products_properties = $db->Execute('SELECT products_length, products_width, products_height, products_ready_to_ship, products_weight, nestable, nestable_percentage, nestable_group_code FROM '.TABLE_PRODUCTS.' WHERE products_id='.(int)$product['id']);
-          if ($products_properties->fields['products_ready_to_ship']) {
-          	//print_r($product);
-            // skip this product
-            for ($i=0; $i<sizeof($product['quantity']); $i++) {
-              $packed_boxes[] = array('box ID' => 'ready to ship', 'length' => $products_properties->fields['products_length'], 'width' => $products_properties->fields['products_width'], 'height' => $products_properties->fields['products_height'], 'weight' => $product['weight'], 'remaining_volume' => 0);
-              $new_total_weight += $product['weight'];
-            } 
-            continue;  
-          }
-          // check if product is nestable
-          
-          if ($products_properties->fields['products_length'] <= 0 || $products_properties->fields['products_width'] <= 0 || $products_properties->fields['products_height'] <= 0) {
-            // pack this product into a default array   
-            $packed_boxes['default'] = array('weight' => $products_properties->fields['products_weight'] * $product['quantity'], 'remaining_volume' => 0);
-            $new_total_weight += ($products_properties->fields['products_weight'] * $product['quantity']);
-            continue;
-          }
+
+          //add or subtract from dimensions based on attributes
           $current_products_length = $products_properties->fields['products_length'];
           $current_products_width = $products_properties->fields['products_width'];
           $current_products_height = $products_properties->fields['products_height'];
           $current_products_weight = $products_properties->fields['products_weight'];
-          
+
           if (is_array($product['attributes'])) {
             foreach ($product['attributes'] as $options_id => $options_values_id) {
               //$products_price += $attribute['price'] * $product['quantity']; 
               //$options_value = $attribute['value'];
-              
+
               $products_attributes_query = "SELECT * FROM " . TABLE_PRODUCTS_ATTRIBUTES . " pa
                                             LEFT JOIN " . TABLE_PRODUCTS_OPTIONS_VALUES . " pov ON (pov.products_options_values_id = pa.options_values_id) 
                                             WHERE pa.products_id = " . (int)$product['id'] . "
                                             AND pov.products_options_values_id = " . (int)$options_values_id . "
-                                            LIMIT 1;"; 
+                                            LIMIT 1;";
               $products_attributes = $db->Execute($products_attributes_query);
-              
+
               if ($products_attributes->fields['products_attributes_length_prefix'] == '+') {
                 $current_products_length += $products_attributes->fields['products_attributes_length'];
               } elseif ($products_attributes->fields['products_attributes_length_prefix'] == '-') {
@@ -118,6 +103,26 @@ class shippingBoxesManagerObserver extends base
               }
             }
           }
+
+
+          if ($products_properties->fields['products_ready_to_ship']) {
+          	//print_r($product);
+            // skip this product
+            for ($i=0; $i<sizeof($product['quantity']); $i++) {
+              $packed_boxes[] = array('box ID' => 'ready to ship', 'length' => $current_products_length, 'width' => $current_products_width, 'height' => $current_products_height, 'weight' => $current_products_weight, 'remaining_volume' => 0);
+              $new_total_weight += $product['weight'];
+            } 
+            continue;  
+          }
+          // check if product is nestable
+          
+          if ($current_products_length <= 0 || $current_products_width <= 0 || $current_products_height <= 0) {
+            // pack this product into a default array   
+            $packed_boxes['default'] = array('weight' => $current_products_weight * $product['quantity'], 'remaining_volume' => 0);
+            $new_total_weight += ($current_products_weight * $product['quantity']);
+            continue;
+          }
+
           $current_volume = $current_products_length * $current_products_width * $current_products_height;
           // add current products volume to total volume
           //$total_volume += $current_volume;
