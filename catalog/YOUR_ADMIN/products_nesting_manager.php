@@ -1,4 +1,12 @@
-<?php require('includes/application_top.php'); ?>
+<?php
+/**
+ * @package Shipping Boxes Manger
+ * @copyright Copyright 2003-2014 Zen Cart Development Team
+ * @copyright Portions Copyright 2003 osCommerce
+ * @license http://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
+ * @version $Id: $
+ */
+require('includes/application_top.php'); ?>
 <?php
 	$product_nesting_groups = $db->Execute("SELECT * FROM " . TABLE_PRODUCTS_NESTING_GROUPS . " ORDER BY grouping_id ASC;");
 	if (isset($_REQUEST['action'])) {
